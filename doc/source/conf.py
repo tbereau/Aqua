@@ -40,7 +40,7 @@ extensions = [
           'ipython_console_highlighting']
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+#templates_path = ['_templates']
 
 # The suffix of source filenames.
 source_suffix = '.rst'
@@ -52,8 +52,8 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Aqua'
-copyright = u'2012, Diego Prada-Gracia'
+project = u'AquaLab'
+copyright = u'2013, Diego Prada-Gracia'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -101,14 +101,30 @@ pygments_style = 'sphinx'
 
 # -- Options for HTML output ---------------------------------------------------
 
+#nature-mod:
+#html_theme = 'nature-mod'
+#html_sidebars = {'**': [
+#    'logo.html',
+#    'localtoc.html',
+#    'relations.html',
+#    'sourcelink.html',
+#    'searchbox.html'
+#]}
+#nature-tarek:
+#html_theme = 'nature-tarek'
+#html_sidebars = {'index': 'indexsidebar.html'}
+
+#minature:
+html_theme = 'minature'
+
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'misphinxdoc'
+#html_theme = 'nature-mod'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {"nosidebar": "false"}
+#html_theme_options = {"nosidebar": "false"}
 
 # Add any paths that contain custom themes here, relative to this directory.
 html_theme_path = ['_themes']
@@ -122,7 +138,7 @@ html_theme_path = ['_themes']
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = '_static/logo_aqualab2.png'
+html_logo = '_static/logo_medium.png'
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
@@ -132,7 +148,7 @@ html_logo = '_static/logo_aqualab2.png'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+#html_static_path = ['_static']
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
@@ -140,7 +156,7 @@ html_static_path = ['_static']
 
 # If true, SmartyPants will be used to convert quotes and dashes to
 # typographically correct entities.
-#html_use_smartypants = True
+html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
 #html_sidebars = {}
