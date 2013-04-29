@@ -8,6 +8,7 @@ from aqua import *
 
 prot=msystem(input_file=None,download=None,coors=True,verbose=True)
 prot=msystem('AAA.pdb')
+<<<<<<< HEAD
 prot=molecule(download='AAA')
 
 ### Load coordinates on the system from a file (pdb,gro,bin):

@@ -115,3 +115,35 @@ MCL
 
 Gradient Clusters
 +++++++++++++++++
+
+Free Energy Profiles
+====================
+
+CFEPs
++++++
+
+.. method:: network.cfep(mode='pfold',A=0,B=0,num_bins=0,num_iter=20000,KbT=((0.0019872*300.0)))
+
+   :arg str mode: Version of CFEP: 'pfold' or 'mfpt'.  
+   :arg int A: Index of node with Pfold=1.0 if mode='pfold', or with mfpt=0.0 if
+               mode='mfpt'.  
+   :arg int B: Index of node with Pfold=0.0 if
+               mode='pfold'. Not required if mode='mfpt'.  
+   :arg int num_bins: Number of bins to discretize the X coord (Za/Z). If num_bins=0, a
+                       point [X,Y] is computed every ranked node according to the Pfold or mfpt value.
+   :arg int num_iter: Number of iterations to compute the Pfold or mfpt values for each node.
+   :arg float KbT: Value of KbT. (Kb=0.0019872 kcal/mol/K or Kb=0.0083144 kJ/mol/K)
+   :returns: 
+             1. xcfep: X coord of CFEP (Za/Z).
+	     2. ycfep: Y coord of CFEP (-KbT*log(Zab/Z))
+	     3. zcfep: pfold or mfpt corresponding to X.
+	     4. node_vals: values of pfold or mfpt per node.
+	     5. node_x: location in xcfep array per node.
+   :rtype:
+	  1. xcfep: numpy.array[num_bins](float) or numpy.array[network.num_nodes](float) if num_bins=0
+	  2. ycfep: numpy.array[num_bins](float) or numpy.array[network.num_nodes](float) if num_bins=0
+	  3. zcfep: numpy.array[num_bins](float) or numpy.array[network.num_nodes](float) if num_bins=0
+	  4. node_vals: numpy.array[network.num_nodes](float)
+	  5. node_x: numpy.array[networ.num_nodes](int)
+   :prints out: None
+   :example: xcfep, ycfep, zcfep, node_vals, node_x = network.cfep(mode='pfold', A=10, B=30)
