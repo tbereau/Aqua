@@ -60,20 +60,18 @@ def open_traj_read(file_name):
     return funit,io_vars,io_pos,io_err  # io_file,io_vars,io_pos,io_err
 
 
-def read_all(file_unit,io_vars=None,io_pos=None):
+def read_all(file_unit,io_vars=None,io_pos=None,wrap=True):
 
     temp=[]
     while 1:
-        temp_frame,io_pos,io_err,io_end=read_next(file_unit,io_vars,io_pos)
+        temp_frame,io_pos,io_err,io_end=read_next(file_unit,io_vars,io_pos,wrap)
         if io_end or io_err:
             break
-        temp_frame.cell2box()
-        temp_frame.wrap()
         temp.append(temp_frame)
 
     return temp,io_err,io_end   # io_file,io_err,io_end
 
-def read_next(file_unit,io_vars=None,io_pos=None):
+def read_next(file_unit,io_vars=None,io_pos=None,wrap=True):
 
     temp_frame=cl_frame()
     #temp_frame.coors=empty((natoms,3),dtype=float32)
@@ -81,16 +79,20 @@ def read_next(file_unit,io_vars=None,io_pos=None):
 
     io_pos,temp_frame.cell,temp_frame.coors,io_err,io_end=libdcd.read(file_unit,io_vars[0],io_vars[20],io_pos)
     temp_frame.cell2box()
-    temp_frame.wrap()
+    if wrap:
+        temp_frame.wrap()
     return temp_frame,io_pos,io_err,io_end  # frame,io_pos,io_err,io_end
 
-def read_frame(file_unit,frame,io_vars=None,io_pos=None):
+def read_frame(file_unit,frame,io_vars=None,io_pos=None,wrap=True):
 
     temp_frame=cl_frame()
     io_pos=io_vars[2]+frame*io_vars[3]
     io_pos,temp_frame.cell,temp_frame.coors,io_err,io_end=libdcd.read(file_unit,io_vars[0],io_vars[20],io_pos)
     temp_frame.cell2box()
-    temp_frame.wrap()
+    if wrap:
+        temp_frame.wrap()
+    #temp_frame.time=
+    #temp_frame.step=
     return temp_frame,io_pos,io_err,io_end  # frame,io_pos,io_err,io_end
 
 def close_traj(file_unit):
@@ -98,10 +100,10 @@ def close_traj(file_unit):
     io_err=libdcd.close(file_unit)
     return io_err   #io_err=0 good
 
-def open_traj_write(file_name,io_w_vars,origin_name):
+def open_traj_write(file_name,io_vars):
 
     io_err=0
-    funit=libdcd.open_write(len(file_name),str(file_name),io_w_vars[10:30],io_w_vars[0],io_w_vars[1],str(origin_name))
+    funit=libdcd.open_write(len(file_name),str(file_name),io_vars[10:30],io_vars[0],io_vars[1])
 
     if not funit:
         io_err=1
@@ -113,9 +115,15 @@ def write_frame(file_unit,temp_frame):
     io_err=libdcd.write(file_unit,temp_frame.cell,temp_frame.coors,len(temp_frame.coors))
     return io_err
 
-def close_traj_write(file_unit,io_w_vars):
+def write_frame_sel(file_unit,temp_frame,sel):
+
+    sel=array(sel,dtype=int,order='F')
+    io_err=libdcd.write_sel(file_unit,temp_frame.cell,temp_frame.coors,sel,len(temp_frame.coors),len(sel))
+    return io_err
+
+def close_traj_write(file_unit,io_vars):
 
     io_err=0
-    io_err=libdcd.close_write(file_unit,io_w_vars[10:30],io_w_vars[0],io_w_vars[1])
+    io_err=libdcd.close_write(file_unit,io_vars[10:30],io_vars[0],io_vars[1])
     return io_err   #io_err=0 good
 

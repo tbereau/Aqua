@@ -187,7 +187,7 @@ class cl_water(labels_set):             # Attributes of a water molecule
 class msystem(labels_set):               # The suptra-estructure: System (waters+cofactors+proteins...)
 
     
-    def __init__(self,input_file=None,download=None,coors=False,with_bonds=True,missing_atoms=True,verbose=False):
+    def __init__(self,input_file=None,download=None,coors=False,with_bonds=True,missing_atoms=True,wrap=True,verbose=False):
 
 
         # If download:
@@ -525,7 +525,7 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
             ### Loading coordinates
             if self.file_topol_type in ['psf']: coors=False
             if coors:
-                self.load_traj(self.file_topol,frame='ALL',verbose=False)
+                self.load_traj(self.file_topol,frame='ALL',wrap=wrap,verbose=False)
 
 
             if verbose:
@@ -669,8 +669,10 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
                     self.atom[b2].covalent_bonds.append(b1)
                 aa+=bb
 
-    def write_pdb (self,filename=None):
+    def write_pdb (self,filename=None,traj=0,frame=0,sel='ALL'):
         
+        select,nlist,nsys=__read_set_opt__(self,sel)
+
         if filename==None:
             print 'Enter filename: '
             print '      foo.write_pdb("foo.pdb")'
@@ -692,7 +694,8 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
             dct_aux={'ATOM': 'ATOM  ', 'HETATM': 'HETATM'}
             
             new_index=0
-            for ii in range(self.num_atoms):
+            for jj in range(nlist):
+                ii=select[jj]
                 new_index+=1
                 a=dct_aux[self.atom[ii].type_pdb]              # 1-6
                 a+="%5d" % (new_index)                         # 7-11
@@ -706,17 +709,17 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
                 a+="%4d" % self.atom[ii].resid.pdb_index       # 23-26
                 a+=' '                                         # 27
                 a+='   '                                       # 28-30
-                a+="%8.3f" % float(self.frame[0].coors[ii][0])   # 31-38
-                a+="%8.3f" % float(self.frame[0].coors[ii][1])   # 39-46
-                a+="%8.3f" % float(self.frame[0].coors[ii][2])   # 47-54
+                a+="%8.3f" % float(self.traj[traj].frame[frame].coors[ii][0])   # 31-38
+                a+="%8.3f" % float(self.traj[traj].frame[frame].coors[ii][1])   # 39-46
+                a+="%8.3f" % float(self.traj[traj].frame[frame].coors[ii][2])   # 47-54
                 a+="%6.2f" % self.atom[ii].occup               # 55-60
                 a+="%6.2f" % self.atom[ii].bfactor             # 61-66
                 a+='          '                                # 67-76
                 a+="%2s" % self.atom[ii].elem_symb             # 77-78
                 a+="%2s" % self.atom[ii].charge                # 79-80
-                a+='\n' 
+                #a+='\n' 
                 fff.write(str(a))         
-                if ii<(self.num_atoms-1):
+                if ii<(nlist-1):
                     if self.atom[ii].type_pdb!=self.atom[ii+1].type_pdb or self.atom[ii].chain.name!=self.atom[ii+1].chain.name :
                         new_index+=1
                         a="TER   "
@@ -725,9 +728,9 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
                         a+='  '
                         a+=' '                                         
                         a+="%3s" % self.atom[ii].resid.name            
-                        a+='\n' 
+                        #a+='\n' 
                         fff.write(str(a))
-            a='END   '+'\n'
+            a='END   '#+'\n'
             fff.write(str(a))
             fff.close()
         return None
@@ -785,9 +788,9 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
 
         pass
 
-    def load_traj (self,file_input=None,frame=None,begin=None,end=None,increment=1,units='frames',verbose=False):
+    def load_traj (self,file_input=None,frame=None,wrap=True,verbose=False):
 
-        temp_traj=traj(file_input,frame,begin,end,increment,units,verbose=False)
+        temp_traj=traj(file_input,frame,wrap,verbose=False)
         if verbose:
             temp_traj.info(index=len(self.traj))
         self.traj.append(temp_traj)
@@ -1192,6 +1195,62 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
             else:
                 return dih_angs
 
+    def rmsd(self,selection=None,traj_ref=None,frame_ref=None,traj=None,frame='ALL'):
+
+         setA,n_A,natoms_A=__read_set_opt__(self,selection)
+
+         num_frames=__length_frame_opt__(self,traj,frame)
+         coors_reference=self.traj[traj_ref].frame[frame_ref].coors
+         rmsd_vals=numpy.zeros((num_frames),dtype=float,order='F')
+
+         jj=0
+         for iframe in __read_frame_opt__(self,traj,frame):
+             rmsd_val=faux.glob.rmsd(coors_reference,iframe.coors,setA,n_A,natoms_A)
+             rmsd_vals[jj]=rmsd_val
+             jj+=1
+
+         return rmsd_vals
+
+    def lrmsd_fit(self,selection_ref=None,traj_ref=None,frame_ref=None,selection=None,traj=None,frame='ALL',new=False):
+     
+        setA,n_A,natoms_A,setB,n_B,natoms_B,diff_system,diff_set=__read_sets_opt__(self,selection_ref,None,selection)
+
+        if n_A!=n_B :
+            print '# Error: Different number of atoms'
+            return
+
+        num_frames=__length_frame_opt__(self,traj,frame)
+        coors_reference=self.traj[traj_ref].frame[frame_ref].coors
+        rmsd_traj=numpy.zeros((num_frames),dtype=float,order='F')
+
+        jj=0
+        if new:
+            fitted_traj=traj()
+        for iframe in __read_frame_opt__(self,traj,frame):
+            rot,center_ref,center_orig,rmsd,g=faux.glob.min_rmsd(coors_reference,iframe.coors,setA,setB,n_A,natoms_A,n_B,natoms_B)
+            coors_new=faux.glob.rot_trans(iframe.coors,rot,center_orig,center_ref,natoms_B)
+            rmsd_traj[jj]=rmsd
+            jj+=1
+            if new:
+                pass
+            else:
+                iframe.coors=coors_new.copy()
+
+        if new:
+            #fitted_set=copy.deepcopy(self)
+            #fitted_set.frame[0].coors=coors_new
+            #fitted_set.pdb_header="Mensaje del fitteo"
+            #fitted_set.rmsd=rmsd
+            return 'To be implemented.'
+        else:
+            #self.frame[0].coors=copy.deepcopy(coors_new)
+            #self.rmsd=rmsd
+            return rmsd_traj
+
+        #print '# RMSD fitting:',rmsd
+            # Use coors_new
+     
+
 
 
 #def min_distance(system,set_a,set_b=None,pbc=True,type_b='atoms'):
@@ -1233,20 +1292,20 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
         return xxx,rdf_tot
 
 
-    def neighbs_old(self,setA=None,setB=None,ranking=1,dist=None,traj=0,frame=0,pbc=True):
+    def neighbors(self,setA=None,setB=None,ranking=1,dist=None,traj=0,frame=0,pbc=True):
      
         setA,nlist_A,nsys_A,setB,nlist_B,nsys_B,diff_syst,diff_set=__read_sets_opt__(self,setA,None,setB)
         num_frames=__length_frame_opt__(self,traj,frame)
 
         if dist==None:
             neighbs=[]
-            neighbs=numpy.empty(shape=(nlist_A,ranking,num_frames),dtype=int,order='Fortran')
+            neighbs=numpy.empty(shape=(num_frames,nlist_A,ranking),dtype=int,order='Fortran')
             num_frames=0
             for iframe in __read_frame_opt__(self,traj,frame):
-                neighbs[:,:][num_frames]=faux.glob.neighbs_ranking(diff_syst,diff_set,pbc,ranking,setA,iframe.coors,iframe.box,iframe.orthogonal,setB,iframe.coors,nlist_A,nlist_B,nsys_A,nsys_B)
+                neighbs[num_frames,:,:]=faux.glob.neighbs_ranking(diff_syst,diff_set,pbc,ranking,setA,iframe.coors,iframe.box,iframe.orthogonal,setB,iframe.coors,nlist_A,nlist_B,nsys_A,nsys_B)
                 num_frames+=1
             if num_frames==1:
-                return neighbs[:,:][0]
+                return neighbs[0][:,:]
             else:
                 return neighbs
             
@@ -1269,6 +1328,30 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
                 return neighbs[0]
             else:
                 return neighbs
+
+    def contact_map (self,setA=None,setB=None,dist=None,traj=0,frame=0,pbc=True):
+     
+        setA,nlist_A,nsys_A,setB,nlist_B,nsys_B,diff_syst,diff_set=__read_sets_opt__(self,setA,None,setB)
+        num_frames=__length_frame_opt__(self,traj,frame)
+
+        c_map=numpy.empty(shape=(num_frames,nlist_A,nlist_B),dtype=int,order='Fortran')
+        num_frames=0
+        for iframe in __read_frame_opt__(self,traj,frame):
+            c_map[num_frames][:,:],aa,bb=faux.glob.neighbs_dist(diff_syst,diff_set,pbc,dist,setA,iframe.coors,iframe.box,iframe.orthogonal,setB,iframe.coors,nlist_A,nlist_B,nsys_A,nsys_B)
+            num_frames+=1
+            del(aa); del(bb)
+
+        if num_frames==1:
+            return c_map[0][:,:]
+        else:
+            return c_map
+     
+        #def plot_contact_map(contact_map):
+        #    
+        #    pylab.gray()
+        #    pylab.imshow(contact_map==False,origin='lower',interpolation=None) # Would be better not to interpolate
+        #    #pylab.matshow(contact_map==False)
+        #    return pylab.show()
 
 
 
@@ -1459,8 +1542,52 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
 
         elif faux.hbonds.definition == 2 : 
             faux.hbonds.roh2_param= roh_param**2
-            print 'Not implemented yet'
-            pass
+
+            if infile:
+                print 'Not implemented yet'
+                pass
+
+            else:
+
+                if optimize:
+                    gg=0
+                    hbout=[]
+                    for iframe in __read_frame_opt__(self,traj,frame):
+                        if (gg==0): 
+                            self.verlet_list_grid_ns(r1=roh_param,r2=roh_param,rcell=roh_param,iframe=iframe)
+                        else:
+                            self.verlet_list_grid_ns(r1=roh_param,r2=roh_param,rcell=roh_param,iframe=iframe,update=True)
+
+                        faux.hbonds.get_hbonds_roo_ang_ns_list( opt_diff_set, opt_pbc, \
+                                           acc_don_A[0],acc_don_A[1],acc_don_A[2],acc_don_A[3],acc_don_A[4],acc_don_A[5], \
+                                           iframe.coors,iframe.box,iframe.orthogonal, \
+                                           acc_don_B[0],acc_don_B[1],acc_don_B[2],acc_don_B[3],acc_don_B[4],acc_don_B[5], \
+                                           nA_acc,nA_acc_sH,nA_acc_H,nA_don,nA_don_sH,nA_don_H, \
+                                           nB_acc,nB_acc_sH,nB_acc_H,nB_don,nB_don_sH,nB_don_H, \
+                                           self.num_atoms)
+
+                        hbout.append([ccopy.deepcopy(faux.glob.hbs_out),ccopy.deepcopy(faux.glob.hbs_vals_out)])
+                        gg+=1
+                else:
+                    hbout=[]
+                    gg=0
+                    for iframe in __read_frame_opt__(self,traj,frame):
+                        faux.hbonds.get_hbonds_roo_ang( opt_diff_set, opt_pbc, \
+                                                        acc_don_A[0],acc_don_A[1],acc_don_A[2],acc_don_A[3],acc_don_A[4],acc_don_A[5], \
+                                                        iframe.coors,iframe.box,iframe.orthogonal, \
+                                                        acc_don_B[0],acc_don_B[1],acc_don_B[2],acc_don_B[3],acc_don_B[4],acc_don_B[5], \
+                                                        nA_acc,nA_acc_sH,nA_acc_H,nA_don,nA_don_sH,nA_don_H, \
+                                                        nB_acc,nB_acc_sH,nB_acc_H,nB_don,nB_don_sH,nB_don_H, \
+                                                        self.num_atoms)
+                        hbout.append([ccopy.deepcopy(faux.glob.hbs_out),ccopy.deepcopy(faux.glob.hbs_vals_out)])
+                        gg+=1
+
+            if gg==1:
+                return hbout[0]
+            else:
+                return hbout
+
+                
 
         elif faux.hbonds.definition == 3 : # ROO_ANG
             faux.hbonds.roo2_param, faux.hbonds.cos_angooh_param= roo_param**2, numpy.cos(numpy.radians(angooh_param))
@@ -2051,33 +2178,6 @@ class msystem(labels_set):               # The suptra-estructure: System (waters
     #    #    #pylab.matshow(contact_map==False)
     #    #    return pylab.show()
 
-    #def lrmsd_fit(self,set_ref=None,traj_ref=None,frame_ref=None,selection=None,traj=None,frame=None,new=False):
-    # 
-    #    setA,n_A,natoms_A,setB,n_B,natoms_B,diff_system=__read_sets_opt__(self,set_ref,None,selection)
-    # 
-    #    if n_A!=n_B :
-    #        print '# Error: Different number of atoms'
-    #        return
-    # 
-    #    rot,center_ref,center_orig,rmsd,g=f.aux_funcs_general.min_rmsd(coors_reference,coors_original,len(coors_original))
-    #    coors_new=f.aux_funcs_general.rot_trans(coors_original,rot,center_orig,center_ref,len(coors_original))
-    # 
-    #    
-    #    if new:
-    #        fitted_set=copy.deepcopy(self)
-    #        fitted_set.frame[0].coors=coors_new
-    #         fitted_set.pdb_header="Mensaje del fitteo"
-    #        fitted_set.rmsd=rmsd
-    # 
-    #        return fitted_set
-    #    else:
-    #        self.frame[0].coors=copy.deepcopy(coors_new)
-    #        self.rmsd=rmsd
-    # 
-    #    print '# RMSD fitting:',rmsd
-    #        # Use coors_new
-    # 
-    #    return
 
     #def displ_vector(self,set_reference=None):
     # 
@@ -2105,9 +2205,9 @@ def __read_frame_opt__ (syst=None,traj=0,frame=None):
     if frame in ['ALL','All','all']:
         return syst.traj[traj].frame
     elif type(frame) in [numpy.int32,int]:
-        return [syst.traj[0].frame[ii] for ii in [frame]]
+        return [syst.traj[traj].frame[ii] for ii in [frame]]
     elif type(frame) in [list,tuple]:
-        return [syst.traj[0].frame[ii] for ii in frame]
+        return [syst.traj[traj].frame[ii] for ii in frame]
 
 def __length_frame_opt__ (syst=None,traj=0,frame=None):
 
